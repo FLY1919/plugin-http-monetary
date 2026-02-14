@@ -1,6 +1,7 @@
 import { Context, Schema } from 'koishi'
-import {} from 'koishi-plugin-monetary'
-import {} from '@koishijs/plugin-server'
+import { } from 'koishi-plugin-monetary'
+import { } from '@koishijs/plugin-server'
+import { $ } from 'koishi'
 import { Logger } from 'koishi'
 import { Config } from './config';
 import { logger_status } from './utils';
@@ -41,7 +42,86 @@ export function apply(ctx: Context, config: Config) {
     logger_status(logger, config.loggerinfo)?.warn(`鉴权失败: IP=${koaCtx.ip} 路径=${koaCtx.path}`)
   }
 
-  // 注册路由（ctx.server 由 @koishijs/plugin-server 提供）
+  // 查询用户的所有货币余额
+  ctx.server.get(prefix + '/currencies/:uid', async (koaCtx) => {
+    if (!checkAuth(koaCtx)) {
+      handleUnauthorized(koaCtx)
+      return
+    }
+
+
+    const uid = parseInt(koaCtx.params.uid)
+    if (isNaN(uid)) {
+      koaCtx.status = 400
+      koaCtx.body = { error: 'invalid uid' }
+      return
+    }
+
+    try {
+      const records = await ctx.database.get('monetary', { uid }, ['currency', 'value'])
+      koaCtx.body = {
+        uid,
+        currencies: records.map(r => ({
+          currency: r.currency,
+          balance: r.value
+        }))
+      }
+      logger_status(logger, config.loggerinfo)?.info(`查询用户货币成功: uid=${uid} count=${records.length}`)
+    } catch (e) {
+      koaCtx.status = 500
+      koaCtx.body = { error: e.message }
+      logger_status(logger, config.loggerinfo)?.error(`查询货币失败: ${e.message}`)
+    }
+  })
+  // 查询 binding 信息
+  ctx.server.get(prefix + '/binding/:pid', async (koaCtx) => {
+    // 鉴权（沿用之前的 checkAuth）
+    if (!checkAuth(koaCtx)) {
+      handleUnauthorized(koaCtx)
+      return
+    }
+
+
+    const pid = parseInt(koaCtx.params.pid) as number
+    if (isNaN(pid)) {
+      koaCtx.status = 400
+      koaCtx.body = { error: 'invalid pid' }
+      return
+    }
+
+    const platform = koaCtx.query.platform as string
+    if (!platform) {
+      koaCtx.status = 400
+      koaCtx.body = { error: 'platform query parameter is required' }
+      return
+    }
+
+    try {
+      const [record] = await ctx.database.get('binding', {
+        pid: String(pid),
+        platform
+      }, ['aid', 'bid'])
+
+      if (!record) {
+        koaCtx.status = 404
+        koaCtx.body = { error: 'binding not found' }
+        return
+      }
+
+      koaCtx.body = {
+        pid,
+        platform,
+        aid: record.aid,
+        bid: record.bid
+      }
+      logger_status(logger, config.loggerinfo)?.info(`查询 binding 成功: pid=${pid} platform=${platform}`)
+    } catch (e) {
+      koaCtx.status = 500
+      koaCtx.body = { error: e.message }
+      logger_status(logger, config.loggerinfo)?.error(`查询 binding 失败: ${e.message}`)
+    }
+  })
+
   ctx.server.get(prefix + '/balance/:uid', async (koaCtx) => {
     // 鉴权检查
     if (!checkAuth(koaCtx)) {
@@ -66,7 +146,7 @@ export function apply(ctx: Context, config: Config) {
         currency,
         balance: data?.value ?? 0,
       }
-      logger.info(`查询余额成功: uid=${uid} currency=${currency} balance=${data?.value ?? 0}`)
+      logger_status(logger, config.loggerinfo)?.info(`查询余额成功: uid=${uid} currency=${currency} balance=${data?.value ?? 0}`)
     } catch (e) {
       koaCtx.status = 500
       koaCtx.body = { error: e.message }
@@ -80,7 +160,6 @@ export function apply(ctx: Context, config: Config) {
       return
     }
 
-    const koishiCtx = koaCtx.ctx
     const { uid, amount, currency } = (koaCtx.request as any).body as any
 
     if (typeof uid !== 'number' || typeof amount !== 'number' || amount <= 0) {

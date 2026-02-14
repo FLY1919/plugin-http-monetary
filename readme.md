@@ -2,8 +2,8 @@
 
 [![npm](https://img.shields.io/npm/v/koishi-plugin-plugin-http-monetary?style=flat-square)](https://www.npmjs.com/package/koishi-plugin-plugin-http-monetary)
 
-✨ **给 Koishi 的 monetary 服务加上萌萌的 HTTP 小爪子～**  
-主人可以通过 REST API 查询余额、增加/扣除点数，还能用暗号保护咱的小金库哦。
+✨ **给 Koishi 的 monetary 服务装上毛茸茸的 HTTP 小爪子～**  
+主人可以通过 REST API 查询余额、增加/扣除点数、查看货币种类，还能用暗号保护咱的小金库哦。
 
 ---
 
@@ -18,6 +18,7 @@ yarn add koishi-plugin-plugin-http-monetary
 > 🚨 **需要一起玩耍的小伙伴**：
 > - [`koishi-plugin-monetary`](https://www.npmjs.com/package/koishi-plugin-monetary) —— 点数系统的家
 > - [`@koishijs/plugin-server`](https://www.npmjs.com/package/@koishijs/plugin-server) —— 开门迎客的 HTTP 服务
+> - 数据库插件（如 `@koishijs/plugin-database-sqlite`）—— 存小钱钱的地方
 
 ---
 
@@ -39,6 +40,24 @@ plugin-http-monetary:
 
 ---
 
+## 🆔 ID 说明
+
+在 Koishi 中，用户身份有以下几种 ID，别搞混哦：
+
+| 字段 | 名称 | 说明 |
+|------|------|------|
+| `pid` | **平台用户 ID** | 用户在具体平台上的原始 ID，比如 QQ 号、Discord ID（可能是数字或字符串） |
+| `platform` | **平台名** | 如 `'qq'`、`'discord'` |
+| `aid` | **内部用户 ID** | Koishi 内部统一分配的数字 ID，用于跨平台关联同一用户（即 monetary 表中的 `uid`） |
+| `uid` | **内部用户 ID** | 在 monetary 表中使用的字段，就是 `aid`，所有操作点数的接口都使用这个 ID |
+
+**所以**：  
+- 如果你只有 `pid`（比如 QQ 号）和 `platform`，需要先通过 `/binding` 接口查询对应的 `aid`（内部 ID）。  
+- 拿到 `aid` 后，就可以用它来调用所有点数相关接口（参数中叫 `uid`）。  
+- 如果你已经有了内部 `aid`，直接操作即可。
+
+---
+
 ## 🛣️ API 路由
 
 所有接口都返回 JSON。如果设置了 `apiKey`，请求头必须包含：
@@ -49,47 +68,104 @@ Authorization: Bearer <你的密钥>
 
 ---
 
-### 🔍 查询余额
+### 🔗 根据平台信息查询内部 ID（aid）
+
+```
+GET /monetary/binding/:pid?platform=<平台>
+```
+
+**路径参数**  
+- `pid`：平台用户 ID（如 QQ 号），根据数据库类型可能是数字或字符串
+
+**查询参数**  
+- `platform`：平台名称（如 `qq`、`discord`），**必填**
+
+**示例**  
+```bash
+curl "http://localhost:8080/monetary/binding/123456789?platform=qq"
+```
+
+**成功响应**  
+```json
+{
+  "pid": 123456789,
+  "platform": "qq",
+  "aid": 42,          // 内部 ID，用于后续操作
+  "bid": "bot123"
+}
+```
+
+**错误响应**  
+- `400`：缺少参数或格式错误  
+- `401`：未授权  
+- `404`：绑定信息不存在  
+- `500`：内部错误
+
+---
+
+### 🔍 查询余额（使用内部 ID）
 
 ```
 GET /monetary/balance/:uid?currency=<币种>
 ```
 
 **路径参数**  
-- `uid`：用户 ID（数字）
+- `uid`：内部用户 ID（即上面返回的 `aid`，数字）
 
 **查询参数**  
 - `currency`：币种，默认 `'default'`
 
 **示例**  
 ```bash
-curl "http://localhost:8080/monetary/balance/12345?currency=gold"
+curl "http://localhost:8080/monetary/balance/42?currency=gold"
 ```
 
 **成功响应**  
 ```json
 {
-  "uid": 12345,
+  "uid": 42,
   "currency": "gold",
   "balance": 100
 }
 ```
 
-**错误响应**  
-- `400`：uid 格式不对  
-- `401`：未授权（密钥错误或缺失）  
-- `500`：服务器内部错误
+---
+
+### 🪙 查询用户所有货币种类（使用内部 ID）
+
+```
+GET /monetary/currencies/:uid
+```
+
+**路径参数**  
+- `uid`：内部用户 ID
+
+**示例**  
+```bash
+curl "http://localhost:8080/monetary/currencies/42"
+```
+
+**成功响应**  
+```json
+{
+  "uid": 42,
+  "currencies": [
+    { "currency": "default", "balance": 100 },
+    { "currency": "gold", "balance": 50 }
+  ]
+}
+```
 
 ---
 
-### ➕ 增加点数
+### ➕ 增加点数（使用内部 ID）
 
 ```
 POST /monetary/gain
 Content-Type: application/json
 
 {
-  "uid": 12345,
+  "uid": 42,
   "amount": 50,
   "currency": "gold"   // 可选，默认为 default
 }
@@ -100,7 +176,7 @@ Content-Type: application/json
 curl -X POST http://localhost:8080/monetary/gain \
   -H "Authorization: Bearer meow-secret-key" \
   -H "Content-Type: application/json" \
-  -d '{"uid": 12345, "amount": 50}'
+  -d '{"uid": 42, "amount": 50}'
 ```
 
 **成功响应**  
@@ -108,21 +184,16 @@ curl -X POST http://localhost:8080/monetary/gain \
 { "success": true }
 ```
 
-**错误响应**  
-- `400`：参数无效（如 amount ≤ 0）  
-- `401`：未授权  
-- `500`：内部错误
-
 ---
 
-### ➖ 扣除点数
+### ➖ 扣除点数（使用内部 ID）
 
 ```
 POST /monetary/cost
 Content-Type: application/json
 
 {
-  "uid": 12345,
+  "uid": 42,
   "amount": 30,
   "currency": "gold"
 }
@@ -133,7 +204,7 @@ Content-Type: application/json
 curl -X POST http://localhost:8080/monetary/cost \
   -H "Authorization: Bearer meow-secret-key" \
   -H "Content-Type: application/json" \
-  -d '{"uid": 12345, "amount": 30}'
+  -d '{"uid": 42, "amount": 30}'
 ```
 
 **成功响应**  
@@ -145,11 +216,6 @@ curl -X POST http://localhost:8080/monetary/cost \
 ```json
 { "error": "insufficient balance" }
 ```
-
-**其他错误**  
-- `400`：参数无效  
-- `401`：未授权  
-- `500`：内部错误
 
 ---
 
@@ -163,7 +229,9 @@ curl -X POST http://localhost:8080/monetary/cost \
 
 - 如果 `apiKey` 留空，任何人都能调用 API，请务必在安全网络下使用哦。
 - 记得先让 `@koishijs/plugin-server` 起床，不然咱开不了门。
-- 数据库表由 `monetary` 自动创建，咱只负责跑腿。
+- 数据库表由 `monetary` 自动创建，但 **binding 表需要你自己定义**（如果要用绑定查询接口的话）。
+- 绑定查询接口中的 `pid` 类型必须与数据库一致（数字或字符串），如果出现查询不到的情况，请检查类型是否匹配。
+- 所有操作点数的接口都使用**内部用户 ID（aid）**，不要直接用平台 ID。
 
 ---
 
