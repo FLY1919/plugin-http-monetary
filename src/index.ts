@@ -49,7 +49,6 @@ export function apply(ctx: Context, config: Config) {
       return
     }
 
-    const koishiCtx = koaCtx.ctx
     const uid = parseInt(koaCtx.params.uid)
     if (isNaN(uid)) {
       koaCtx.status = 400
@@ -61,7 +60,7 @@ export function apply(ctx: Context, config: Config) {
     const currency = (koaCtx.query.currency as string) || 'default'
 
     try {
-      const [data] = await koishiCtx.database.get('monetary', { uid, currency }, ['value'])
+      const [data] = await ctx.database.get('monetary', { uid, currency }, ['value'])
       koaCtx.body = {
         uid,
         currency,
@@ -92,7 +91,7 @@ export function apply(ctx: Context, config: Config) {
     }
 
     try {
-      await koishiCtx.monetary.gain(uid, amount, currency || 'default')
+      await ctx.monetary.gain(uid, amount, currency || 'default')
       koaCtx.body = { success: true }
       logger_status(logger, config.loggerinfo)?.info(`增加点数成功: uid=${uid} amount=${amount} currency=${currency || 'default'}`)
     } catch (e) {
@@ -119,7 +118,7 @@ export function apply(ctx: Context, config: Config) {
     }
 
     try {
-      await koishiCtx.monetary.cost(uid, amount, currency || 'default')
+      await ctx.monetary.cost(uid, amount, currency || 'default')
       koaCtx.body = { success: true }
       logger_status(logger, config.loggerinfo)?.info(`扣除点数成功: uid=${uid} amount=${amount} currency=${currency || 'default'}`)
     } catch (e) {
