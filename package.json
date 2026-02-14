@@ -1,7 +1,7 @@
 {
-  "name": "koishi-plugin-plugin-http-monetary",
+  "name": "koishi-plugin-http-monetary",
   "description": "HTTP API for Koishi Monetary Plugin",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "contributors": [
@@ -9,8 +9,7 @@
   ],
   "files": [
     "lib",
-    "dist",
-    "src"
+    "dist"
   ],
   "repository": {
     "type": "git",
