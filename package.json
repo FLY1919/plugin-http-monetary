@@ -1,21 +1,37 @@
 {
   "name": "koishi-plugin-plugin-http-monetary",
-  "description": " ",
+  "description": "HTTP API for Koishi Monetary Plugin",
   "version": "0.0.1",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
+  "contributors": [
+    "FLY1919 <qw687255511@163.com>"
+  ],
   "files": [
     "lib",
     "dist"
   ],
-  "license": "MIT",
-  "scripts": {},
+  "license": "Apache-2.0",
+  "homepage": "",
+  "koishi": {
+    "description": {
+      "zh": "Koishi Monetary 插件的 HTTP API 插件",
+      "en": "HTTP API plugin for Koishi Monetary plugin",
+      "ja": "Koishi Monetary プラグインの HTTP API プラグイン",
+      "ko": "Koishi Monetary 플러그인의 HTTP API 플러그인",
+      "zh-TW": "Koishi Monetary 插件的 HTTP API 插件",
+      "fr": "Plugin HTTP API pour le plugin Koishi Monetary",
+      "ru": "HTTP API плагин для плагина Koishi Monetary",
+      "de": "HTTP-API-Plugin für das Koishi Monetary Plugin",
+      "es": "Plugin HTTP API para el plugin Koishi Monetary"
+    }
+
+  },
   "keywords": [
     "chatbot",
     "koishi",
     "plugin"
   ],
-  "devDependencies": {},
   "peerDependencies": {
     "koishi": "4.18.10"
   }
