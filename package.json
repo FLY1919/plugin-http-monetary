@@ -9,10 +9,22 @@
   ],
   "files": [
     "lib",
-    "dist"
+    "dist",
+    "src"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FLY1919/plugin-http-monetary.git"
+  },
+  "bugs": {
+    "url": "https://github.com/FLY1919/plugin-http-monetary/issues"
+  },
+  "scripts": {
+    "build": "tsc",
+    "pub": "npm run build && npm publish"
+  },
   "license": "Apache-2.0",
-  "homepage": "",
+  "homepage": "https://github.com/FLY1919/plugin-http-monetary",
   "koishi": {
     "description": {
       "zh": "Koishi Monetary 插件的 HTTP API 插件",
@@ -25,14 +37,19 @@
       "de": "HTTP-API-Plugin für das Koishi Monetary Plugin",
       "es": "Plugin HTTP API para el plugin Koishi Monetary"
     }
-
   },
   "keywords": [
     "chatbot",
     "koishi",
-    "plugin"
+    "plugin",
+    "monetary",
+    "http",
+    "api"
   ],
   "peerDependencies": {
+    "koishi": "4.18.10"
+  },
+  "devDependencies": {
     "koishi": "4.18.10"
   }
 }
