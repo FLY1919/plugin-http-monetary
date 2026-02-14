@@ -9,7 +9,7 @@ export * from './config';
 
 export const name = 'plugin-http-monetary'
 
-export const inject = ['monetary', 'server', 'logger']
+export const inject = ['monetary', 'server', 'logger', 'database']
 
 export const usage = `
 <hr>
