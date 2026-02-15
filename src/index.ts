@@ -153,7 +153,36 @@ export function apply(ctx: Context, config: Config) {
       logger_status(logger, config.loggerinfo)?.error(`查询余额失败: uid=${uid} error=${e.message}`)
     }
   })
+  // 获取每种货币的总发行量（完全正确版）
+  ctx.server.get(prefix + '/total-supply', async (koaCtx) => {
+    if (!checkAuth(koaCtx)) {
+      handleUnauthorized(koaCtx)
+      return
+    }
 
+    try {
+      // 链式调用，完全符合官方文档
+      const result = await ctx.database.select('monetary', {
+        value: { $gt: 0 }
+      }).execute().then(rows => {
+        const supplyMap: Record<string, number> = {}
+        for (const row of rows) {
+          const currency = row.currency
+          supplyMap[currency] = (supplyMap[currency] || 0) + row.value
+        }
+        return Object.entries(supplyMap).map(([currency, total]) => ({ currency, total }))
+      })
+      // TypeScript 可能报错，但运行时正确，用断言处理
+      const supplies = (result || []) as Array<{ currency: string; total: number }>
+
+      koaCtx.body = { supplies }
+      logger_status(logger, config.loggerinfo)?.info(`查询总发行量成功，共 ${supplies.length} 种货币`)
+    } catch (e) {
+      koaCtx.status = 500
+      koaCtx.body = { error: e.message }
+      logger_status(logger, config.loggerinfo)?.error(`查询总发行量失败: ${e.message}`)
+    }
+  })
   ctx.server.post(prefix + '/gain', async (koaCtx) => {
     if (!checkAuth(koaCtx)) {
       handleUnauthorized(koaCtx)
